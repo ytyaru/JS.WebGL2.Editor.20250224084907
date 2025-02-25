@@ -3,12 +3,12 @@
 // const program = await webgl2.build(vertexShaderSource, fragmentShaderSource);
 class WebGL2 {
     static #FROM = 'WebGL2はコンストラクタ呼出禁止です。代わりにWebGL2.of()を呼出てください。';
-    static of(width=500, height=500, options={throw:true,log:true,msg:true,use:true}, contextName='webgl2') {return new WebGL2(width, height, options, contextName, WebGL2.#FROM)}
-    constructor(width=500, height=500, options={throw:true,log:true,msg:true,use:true}, contextName='webgl2', from){//gl:canvas.getContext('webgl2')
+    static of(width=500, height=500, contextName='webgl2') {return new WebGL2(width, height, contextName, WebGL2.#FROM)}
+    constructor(width=500, height=500, contextName='webgl2', from){//gl:canvas.getContext('webgl2')
         if (from!==WebGL2.#FROM){throw new TypeError(WebGL2.#FROM)}
         this._canvas = Canvas.makeAdd(width, height);
         this._context = this.canvas.getContext(contextName);
-        this._builder = Builder.of(this._context, options);
+        this._builder = Builder.of(this._context);
     }
     get canvas() {return this._canvas}
     get context() {return this._context}
@@ -58,7 +58,6 @@ class Source {// GLSLソースコード
         return await Promise.all([res[0].text(), res[1].text()]);
     }
     static fromElementQuery(q) {// <script>等の要素を指定する文字列(document.querySelector()の引数)
-        if (''===q){return q}
         const el = document.querySelector(q);
         if (!el){throw new TypeError(`Source.fromElementQuery()の引数で指定されたクエリでHTML要素を取得できませんでした。GLSLコードが記載されたHTML要素を指定できるクエリを引数に渡してください。:${q}`)}
         else {return this.fromElement(el)}
@@ -100,7 +99,7 @@ class Builder {// GLSLのコンパイルとリンク
         const status = this._gl.getShaderParameter(shader, this._gl.COMPILE_STATUS);
         if(!status) {
             const info = this._gl.getShaderInfoLog(shader);
-            this.#makeRet(`${type===this._gl.VERTEX_SHADER ? 'VERTEX' : 'FRAGMENT'}シェーダのコンパイルに失敗しました。\n${info}`)
+            this.#makeRet(`シェーダのコンパイルに失敗：${type===this._gl.VERTEX_SHADER ? 'VERTEX' : 'FRAGMENT'}:${info}`)
         }
         console.log(source)
         return shader
@@ -112,7 +111,7 @@ class Builder {// GLSLのコンパイルとリンク
         const linkStatus = this._gl.getProgramParameter(program, this._gl.LINK_STATUS);
         if(!linkStatus) {
             const info = this._gl.getProgramInfoLog(program);
-            this.#makeRet(`シェーダプログラムオブジェクトの生成に失敗しました。\n${info}`)
+            this.#makeRet(`シェーダプログラムオブジェクトの生成に失敗：${info}`)
         }
         this._program = program;
         return program;

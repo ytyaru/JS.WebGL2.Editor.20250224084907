@@ -2,20 +2,14 @@
 class Editor {
     constructor(width, height, q) {
         this._textAreaIds = 'vertex-shader fragment-shader javascript'.split(' ');
-//        this._webgl2 = WebGL2.of(width, height);
+        this._webgl2 = WebGL2.of(width, height);
         this.#init(q);
     }
     get webgl2() {return this._webgl2;}
     async build() {await this.#build(...this.#allSources)}
     #init(q) {
-//        this._webgl2.canvas.id = 'result';
-        document.querySelector(q).append(...this.#make());
-
-        const W = parseInt(document.querySelector(`#vertex-shader`).getBoundingClientRect().width);
-        console.log(`キャンバスサイズ:${W}x${W}`)
-        this._webgl2 = WebGL2.of(W, W, {throw:false,log:true,msg:true,use:true});
         this._webgl2.canvas.id = 'result';
-        document.querySelector(`#result-div`).appendChild(this._webgl2.canvas);
+        document.querySelector(q).append(...this.#make());
     }
     #make() {
         const code = {
@@ -35,19 +29,13 @@ void main() {
   fragmentColor = vColor;
 }
 `,
-/*
-gl.clear(
-  gl.getParameter(gl.COLOR_CLEAR_VALUE) | 
-  gl.getParameter(gl.DEPTH_CLEAR_VALUE) | 
-  gl.getParameter(gl.STENCIL_CLEAR_VALUE));
-*/
-/*const webgl2 = WebGL2.of(500, 500);
+            js: `/*const webgl2 = WebGL2.of(500, 500);
 const program = await webgl2.build(
     vertexShaderSource,
     fragmentShaderSource);
 const gl = webgl2.context;
 */
-            js: `const vertexBuffer = gl.createBuffer();
+const vertexBuffer = gl.createBuffer();
 const colorBuffer = gl.createBuffer();
 const vertexAttribLocation = gl.getAttribLocation(program, 'vertexPosition');
 const colorAttribLocation  = gl.getAttribLocation(program, 'color');
@@ -83,22 +71,12 @@ const VERTEX_NUMS = 6;
 gl.drawArrays(gl.TRIANGLES, 0, VERTEX_NUMS);
 gl.flush();
 `};
-        //const resDiv = van.tags.div({id:'result-div', style:'width:100%;height:100%;'});
-        const resDiv = van.tags.div({id:'result-div'});
-        //resDiv.append(van.tags.textarea({id:'log',resize:'none', style:'width:100%;height:100%;box-sizing:content-box;'}), this._webgl2.canvas);
-        //resDiv.append(van.tags.textarea({id:'log',resize:'none', style:'box-sizing:content-box;width:100%;height:100%;'}), this._webgl2.canvas);
-        //resDiv.append(van.tags.textarea({id:'log',resize:'none', style:'box-sizing:content-box;width:100%;height:100%;'}), this._webgl2.canvas);
-        resDiv.appendChild(van.tags.textarea({id:'log',resize:'none', style:'box-sizing:content-box;width:100%;height:100%;'}));
-//        const log = document.createElement('textarea');
-//        log.id = 'log';
-//        resDiv.append(log, this._webgl2.canvas);
         return [
             van.tags.textarea({id:'vertex-shader',resize:'none',value:code.vertex, oninput:async(e)=>await this.#build(...this.#getSource(e,0))}),
             van.tags.textarea({id:'fragment-shader',resize:'none',value:code.fragment, oninput:async(e)=>await this.#build(...this.#getSource(e,1))}),
             van.tags.textarea({id:'javascript',resize:'none',value:code.js, oninput:async(e)=>await this.#build(...this.#getSource(e,2))}),
-            resDiv,
-//            van.tags.textarea({id:'log',resize:'none'}),
-//            this._webgl2.canvas,
+            van.tags.textarea({id:'log',resize:'none'}),
+            this._webgl2.canvas,
         ];
     }
     get #textAreaIds(){return this._textAreaIds}
@@ -112,31 +90,14 @@ gl.flush();
         console.log(fsCode);
         const LOG = document.querySelector(`#log`);
         LOG.value = '';
-        await this._webgl2.build(vsCode, fsCode);
-        if (this._webgl2.msg) {LOG.value = this._webgl2.msg}
-        try {this.#jsBuild(jsCode);}
-        catch(err) {console.warn('X');LOG.value += (0 < LOG.value.length ? '\n' : '') + 'JavaScript Error:\n' + err.message;}
-        this.#switchResult(0 < LOG.value.length);
-
-        /*
         try {await this._webgl2.build(vsCode, fsCode);}
         catch(err){}//握りつぶす
         finally {LOG.value = this._webgl2.msg}
         try {this.#jsBuild(jsCode);}
         catch(err) {console.warn('X');LOG.value += (0 < LOG.value.length ? '\n' : '') + 'JavaScript Error:\n' + err.message;}
-        this.#switchResult(0 < LOG.value.length);
-        */
     }
     #jsBuild(jsCode) {console.log(jsCode, this._webgl2.gl);return (new Function('gl', 'program', jsCode))(this._webgl2.gl, this._webgl2.program);}
     //#jsBuild(jsCode) {console.log(jsCode, this._webgl2.gl);return (new Function('gl', 'program', `(async function() {${jsCode}})();`))(this._webgl2.gl, this._webgl2.program);}
-    #switchResult(isError=false) {
-//        document.querySelector(`#log`).contentVisibility = isError ? 'visible' : 'hidden';
-//        this._webgl2.canvas.contentVisibility = isError ? 'hidden' : 'visible';
-        document.querySelector(`#log`).style.display = isError ? 'block' : 'none';
-        this._webgl2.canvas.style.display = isError ? 'none' : 'block';
-        console.log(document.querySelector(`#log`).style.display)
-        console.log(this._webgl2.canvas.style.display)
-    }
 }
 window.Editor = Editor;
 })();
