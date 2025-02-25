@@ -1,16 +1,17 @@
 ;(function(){
 class Editor {
-    /*
-    constructor() {
-        this._webgl2 = WebGL2.of(500,500);
-
+    constructor(width, height, q) {
+        this._textAreaIds = 'vertex-shader fragment-shader javascript'.split(' ');
+        this._webgl2 = WebGL2.of(width, height);
+        this.#init(q);
     }
-    */
-    static init(q='body') {
-        webgl2.canvas.id = 'result';
-        document.querySelector(q).append(...this.#make(webgl2));
+    get webgl2() {return this._webgl2;}
+    async build() {await this.#build(...this.#allSources)}
+    #init(q) {
+        this._webgl2.canvas.id = 'result';
+        document.querySelector(q).append(...this.#make());
     }
-    static #make(webgl2) {
+    #make() {
         const code = {
             vertex: `#version 300 es
 in vec3 vertexPosition;
@@ -28,12 +29,12 @@ void main() {
   fragmentColor = vColor;
 }
 `,
-            js: `const webgl2 = WebGL2.of(500, 500);
+            js: `/*const webgl2 = WebGL2.of(500, 500);
 const program = await webgl2.build(
     vertexShaderSource,
     fragmentShaderSource);
 const gl = webgl2.context;
-
+*/
 const vertexBuffer = gl.createBuffer();
 const colorBuffer = gl.createBuffer();
 const vertexAttribLocation = gl.getAttribLocation(program, 'vertexPosition');
@@ -70,42 +71,33 @@ const VERTEX_NUMS = 6;
 gl.drawArrays(gl.TRIANGLES, 0, VERTEX_NUMS);
 gl.flush();
 `};
-        e.target.value
-        document.querySelector(`#vertex-shader`).value
-        document.querySelector(`#fragment-shader`).value
         return [
-            van.tags.textarea({id:'vertex-shader',resize:'none',value:code.vertex, oninput:(e)=>this.#build(webgl2,...this.#getSource(e,0)}),
-            van.tags.textarea({id:'fragment-shader',resize:'none',value:code.fragment, oninput:(e)=>this.#build(webgl2,...this.#getSource(e,0))}),
-            van.tags.textarea({id:'javascript',resize:'none',value:code.js, oninput:(e)=>this.#build(webgl2,...this.#getSource(e,0))}),
-
-        /*
-            van.tags.textarea({id:'vertex-shader',resize:'none',value:code.vertex, oninput:(e)=>this.#build(webgl2,e.target.value,document.querySelector(`#fragment-shader`).value,document.querySelector(`#javascript`).value)}),
-            van.tags.textarea({id:'fragment-shader',resize:'none',value:code.fragment, oninput:(e)=>this.#build(webgl2,document.querySelector(`#vertex-shader`).value,e.target.value,document.querySelector(`#javascript`).value)}),
-            van.tags.textarea({id:'javascript',resize:'none',value:code.js, oninput:(e)=>this.#build(webgl2,document.querySelector(`#vertex-shader`).value,document.querySelector(`#fragment-shader`).value,e.target.value)}),
-            */
+            van.tags.textarea({id:'vertex-shader',resize:'none',value:code.vertex, oninput:async(e)=>await this.#build(...this.#getSource(e,0))}),
+            van.tags.textarea({id:'fragment-shader',resize:'none',value:code.fragment, oninput:async(e)=>await this.#build(...this.#getSource(e,1))}),
+            van.tags.textarea({id:'javascript',resize:'none',value:code.js, oninput:async(e)=>await this.#build(...this.#getSource(e,2))}),
             van.tags.textarea({id:'log',resize:'none'}),
-            webgl2.canvas,
-//            van.tags.canvas({id:'result'}),
+            this._webgl2.canvas,
         ];
     }
-    static #getSousrce(e, inputNo) {
-        const srcs = 'vertex-shader fragment-shader javascript'.split(' ');
-        if (inputNo < 0 || srcs.length <= inputNo){throw new TypeError(`引数inputNoは0〜2の整数であるべきです。`)}
-        return srcs.map((id,i)=>i===inputNo ? e.target.value : document.querySelector(`#${srcs[i]}`).value)
+    get #textAreaIds(){return this._textAreaIds}
+    get #allSources(){return this.#textAreaIds.map(id=>document.querySelector(`#${id}`).value)}
+    #getSource(e, inputNo) {
+        if (inputNo < 0 || this.#textAreaIds.length <= inputNo){throw new TypeError(`引数inputNoは0〜2の整数であるべきです。`)}
+        return this.#textAreaIds.map((id,i)=>i===inputNo ? e.target.value : document.querySelector(`#${this.#textAreaIds[i]}`).value)
     }
-    static #build(webgl2, vsCode, fsCode, jsCode) {
-        webgl2.build(vsCode, fsCode);
-        document.querySelector(`#log`).value = webgl2.msg;
-        this.#jsBuild(webgl2, jsCode); // ここで例外発生したらどうなるの？
+    async #build(vsCode, fsCode, jsCode) {
+        console.log(vsCode);
+        console.log(fsCode);
+        const LOG = document.querySelector(`#log`);
+        LOG.value = '';
+        try {await this._webgl2.build(vsCode, fsCode);}
+        catch(err){}//握りつぶす
+        finally {LOG.value = this._webgl2.msg}
+        try {this.#jsBuild(jsCode);}
+        catch(err) {console.warn('X');LOG.value += (0 < LOG.value.length ? '\n' : '') + 'JavaScript Error:\n' + err.message;}
     }
-//webgl2.build(e.target.value, document.querySelector(`#fragment-shader`).value) 
-    //static #jsBuild(webgl2, jsCode) {return (new Function('gl', 'program', `(async function() {${document.querySelector(`#javascript`).value}})();`))(webgl2.gl, webgl2.program);}
-    static #jsBuild(webgl2, jsCode) {return (new Function('gl', 'program', `(async function() {${jsCode}})();`))(webgl2.gl, webgl2.program);}
-        
-        
-        
-
-        
-    }
-
+    #jsBuild(jsCode) {console.log(jsCode, this._webgl2.gl);return (new Function('gl', 'program', jsCode))(this._webgl2.gl, this._webgl2.program);}
+    //#jsBuild(jsCode) {console.log(jsCode, this._webgl2.gl);return (new Function('gl', 'program', `(async function() {${jsCode}})();`))(this._webgl2.gl, this._webgl2.program);}
 }
+window.Editor = Editor;
+})();

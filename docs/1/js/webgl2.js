@@ -98,8 +98,8 @@ class Builder {// GLSLのコンパイルとリンク
         this._gl.compileShader(shader);
         const status = this._gl.getShaderParameter(shader, this._gl.COMPILE_STATUS);
         if(!status) {
-            const info = gl.getShaderInfoLog(shader);
-            this.#makeRet(`シェーダのコンパイルに失敗：${info}`)
+            const info = this._gl.getShaderInfoLog(shader);
+            this.#makeRet(`シェーダのコンパイルに失敗：${type===this._gl.VERTEX_SHADER ? 'VERTEX' : 'FRAGMENT'}:${info}`)
         }
         console.log(source)
         return shader

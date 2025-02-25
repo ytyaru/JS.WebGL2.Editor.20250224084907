@@ -1,4 +1,4 @@
-window.addEventListener('DOMContentLoaded', (event) => {
+window.addEventListener('DOMContentLoaded', async(event) => {
     console.log('DOMContentLoaded!!');
     /*
     const author = 'ytyaru';
@@ -9,7 +9,9 @@ window.addEventListener('DOMContentLoaded', (event) => {
     );
     van.add(document.querySelector('footer'),  new Footer('ytyaru', '../').make());
     */
-    Editor.init('#main');
+//    Editor.init('#main');
+    const editor = new Editor(500,500,'#main');
+    await editor.build();
     /*
     const a = new Assertion();
     a.t(true);
