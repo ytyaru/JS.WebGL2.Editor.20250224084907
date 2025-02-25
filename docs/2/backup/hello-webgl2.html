@@ -1,0 +1,231 @@
+<!-- https://sbfl.net/blog/2016/09/04/webgl2-tutorial-basics/ -->
+<!--<canvas id="canvas"></canvas>-->
+<script type="x-shader/x-vertex" id="vertex-shader">#version 300 es
+// ↑ 一行目に必ず書きます。
+// OpenGL ES 3.0（WebGL2）の機能を使うことを明示しています。
+
+// JavaScriptから入力される値を、inで宣言します。
+// 今回は「頂点座標」と「頂点色」のふたつを用います。
+// 頂点座標：x,y,zの3要素のベクトル
+// 頂点色：r,g,b,alphaの4要素のベクトル
+in vec3 vertexPosition;
+in vec4 color;
+
+// このシェーダからフラグメントシェーダに対して出力する変数を
+// outで宣言します。
+out vec4 vColor;
+
+void main() {
+  // 頂点色を何も処理せずにそのままフラグメントシェーダへ出力します。
+  vColor = color;
+
+  // 頂点座標を決定するには、gl_Position変数へ書き込みます。
+  // 今回は特別な処理は行わず、受け取った値をそのまま素直に出力しています。
+  // 頂点座標はx,y,z,wの4つになるので、vec3からvec4へと変換しています。
+  // wの値については後ほど説明しますが、ここでは1.0固定にしておいてください。
+  gl_Position = vec4(vertexPosition, 1.0);
+}
+</script>
+<script type="x-shader/x-fragment" id="fragment-shader">#version 300 es
+
+// float（単制度浮動小数点）の精度を指定します。
+// これは必須です。
+// lowp, midiump, highpなどありますが、
+// 特別な理由がない限りhighpでいいでしょう。
+precision highp float;
+
+// バーテックスシェーダから受け取る変数を
+// inで宣言します。
+in vec4 vColor;
+
+// 画面に出力する色の変数を宣言しておく。
+// r,g,b,alphaのvec4。
+out vec4 fragmentColor;
+
+void main() {
+  // 特に何も処理せずそのまま色を出力する。
+  fragmentColor = vColor;
+}
+</script>
+
+<!-- GLSLをコンパイルための関数 -->
+<script>
+function compileShaders(gl, vertexShaderSource, fragmentShaderSource) {//引数：ソースコード文字列
+    return [
+        compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource),
+        compileShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource)];
+}
+function compileShader(gl, type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    const status = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+    if(!status) {
+        const info = gl.getShaderInfoLog(shader);
+        console.error(info);
+        throw new Error(`シェーダのコンパイルに失敗：${info}`);
+    }
+    return shader
+}
+function createProgram(gl, vertexShader, fragmentShader) {
+    const program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    const linkStatus = gl.getProgramParameter(program, gl.LINK_STATUS);
+    if(!linkStatus) {
+        const info = gl.getProgramInfoLog(program);
+        console.log(info);
+        throw new Error(`シェーダプログラムオブジェクトの生成に失敗：${info}`);
+    }
+    return program;
+}
+</script>
+<!-- メイン処理 -->
+<script>
+window.addEventListener('DOMContentLoaded', async(event) => {
+    // キャンバスを生成する
+    const canvas = document.createElement('canvas');
+    canvas.width = 500;
+    canvas.height = 500;
+    document.body.appendChild(canvas);
+
+    // WebGL2の文脈を取得する
+    const gl = canvas.getContext('webgl2');
+    console.log(gl);
+    console.assert(gl instanceof WebGL2RenderingContext);
+
+    // シェーダーのソースコードを取得する
+    const vertexShaderSource = document.querySelector(`#vertex-shader`).textContent;
+    const fragmentShaderSource = document.querySelector(`#fragment-shader`).textContent;
+
+    // シェーダをコンパイルする
+    const [vertexShader, fragmentShader] = compileShaders(gl, vertexShaderSource, fragmentShaderSource);
+    // プログラムオブジェクトを生成する
+    const program = createProgram(gl, vertexShader, fragmentShader)
+    // プログラムオブジェクトを使用する
+    gl.useProgram(program);
+
+    // データを転送するためのバッファを作成する
+    const vertexBuffer = gl.createBuffer();
+    const colorBuffer = gl.createBuffer();
+    // バーテックスシェーダのin変数の位置を取得する
+    const vertexAttribLocation = gl.getAttribLocation(program, 'vertexPosition');
+    const colorAttribLocation  = gl.getAttribLocation(program, 'color');
+    // バッファをバインドしてin変数を有効化する
+    const VERTEX_SIZE = 3; // vec3
+    const COLOR_SIZE  = 4; // vec4
+    // バッファ操作前には必ずバインドします。
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    // in変数を有効化します
+    gl.enableVertexAttribArray(vertexAttribLocation);
+    // 現在バインドしているバッファと変数を結びつけます。
+    // サイズはvec3を指定してるので3にします。型はFLOATを使用します。
+    // うしろ3つの引数は今は気にしないでください。
+    gl.vertexAttribPointer(vertexAttribLocation, VERTEX_SIZE, gl.FLOAT, false, 0, 0);
+    // 頂点色についても同様にします。
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.enableVertexAttribArray(colorAttribLocation);
+    gl.vertexAttribPointer(colorAttribLocation, COLOR_SIZE, gl.FLOAT, false, 0, 0);
+    // 描画する
+    // 頂点情報。vec3で宣言しているので、xyzxyzxyz…と並べていきます。
+    // WebGL2では基本的にfloat型を使うので、Float32Arrayを使用します。
+    const vertices = new Float32Array([
+        -0.5, 0.5,  0.0,
+        -0.5, -0.5, 0.0,
+        0.5,  0.5,  0.0,
+        -0.5, -0.5, 0.0,
+        0.5,  -0.5, 0.0,
+        0.5,  0.5,  0.0
+    ]);
+
+    // 色情報。vec4で宣言してるのでrgbargbargba…と並べていきます。
+    // すべて0.0〜1.0の範囲で指定します。
+    // 頂点と同じ数だけ（今回は6つ）必要です。
+    const colors = new Float32Array([
+        1.0, 0.0, 0.0, 1.0,
+        0.0, 1.0, 0.0, 1.0,
+        0.0, 0.0, 1.0, 1.0,
+        0.0, 1.0, 0.0, 1.0,
+        0.0, 0.0, 0.0, 1.0,
+        0.0, 0.0, 1.0, 1.0
+    ]);
+    // バッファを転送する
+    // バインドしてデータを転送します。
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+    // 描画命令
+    // 四角形を描画します。
+    const VERTEX_NUMS = 6;
+    gl.drawArrays(gl.TRIANGLES, 0, VERTEX_NUMS);
+
+    // WebGLに描画を促します。
+    gl.flush();
+});
+</script>
+<!--
+<script>
+// シェーダをコンパイルする
+function compileShader(gl, vertexShaderSource, fragmentShaderSource) {//引数：ソースコード文字列
+    // バーテックスシェーダをコンパイルします。
+    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vertexShader, vertexShaderSource);
+    gl.compileShader(vertexShader);
+
+    // コンパイル成功したか否かをチェックします。
+    const vShaderCompileStatus = gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS);
+    if(!vShaderCompileStatus) {
+        const info = gl.getShaderInfoLog(vertexShader);
+        console.log(info);
+        throw new Error(`頂点シェーダのコンパイルに失敗：${info}`);
+    }
+
+    // フラグメントシェーダについても同様にします。
+    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fragmentShader, fragmentShaderSource);
+    gl.compileShader(fragmentShader);
+
+    const fShaderCompileStatus = gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS);
+    if(!fShaderCompileStatus) {
+        const info = gl.getShaderInfoLog(fragmentShader);
+        console.log(info);
+        throw new Error(`フラグメントシェーダのコンパイルに失敗：${info}`);
+    }
+    return [vertexShader, fragmentShader]
+}
+// プログラムオブジェクトを生成する
+function createProgram(gl, vertexShader, fragmentShader) {
+    // シェーダプログラムを作成します。
+    const program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+
+    // リンクできたかどうかを確認します。
+    const linkStatus = gl.getProgramParameter(program, gl.LINK_STATUS);
+    if(!linkStatus) {
+        const info = gl.getProgramInfoLog(program);
+        console.log(info);
+        throw new Error(`シェーダプログラムオブジェクトの生成に失敗：${info}`);
+    }
+    return program;
+}
+// シェーダーを外部ファイル化した時、それを読み込むのに使用する（今回は未使用）
+function loadShader() {
+    const loadVertexShader = fetch('vertex_shader.glsl');
+    const loadFragmentShader = fetch('fragment_shader.glsl');
+
+    Promise.all([loadVertexShader, loadFragmentShader])
+        .then((responses) => Promise.all([responses[0].text(), responses[1].text()]))
+        .then((shaderSources) => {
+            const vertexShaderSource = shaderSources[0];
+            const fragmentShaderSource = shaderSources[1];
+            // ここに追加していく
+        });
+}
+</script>
+-->
+
